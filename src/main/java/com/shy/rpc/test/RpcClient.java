@@ -4,17 +4,19 @@ package com.shy.rpc.test;
 import com.shy.rpc.test.protocal.RpcProtocal;
 import com.shy.rpc.test.protocal.Shy;
 import com.shy.rpc.test.register.ProviderInfo;
+import com.shy.rpc.test.transport.CallBackManager;
 import com.shy.rpc.test.transport.MessageHandler;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.buffer.UnpooledDirectByteBuf;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
 import java.nio.ByteBuffer;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 public class RpcClient {
 
@@ -38,7 +40,6 @@ public class RpcClient {
                     ch.pipeline().addLast(new MessageHandler());
                 }
             });
-
             // Start the client.
             ChannelFuture f = b.connect(host, port).sync(); // (5)
             NioSocketChannel channel = (NioSocketChannel) f.channel();
@@ -47,11 +48,14 @@ public class RpcClient {
             ByteBuf buf = PooledByteBufAllocator.DEFAULT.directBuffer(msgHeader.length + msgBody.length);
             buf.writeBytes(msgHeader);
             buf.writeBytes(msgBody);
+            CompletableFuture<Shy> callBack = new CompletableFuture<>();
+            CallBackManager.addCallBack(shy.getHeader().getRequestId(),callBack);
             channel.writeAndFlush(buf);
             // Wait until the connection is closed.
+            callBack.get();
             f.channel().closeFuture().sync();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        } catch (InterruptedException | ExecutionException e) {
+
         } finally {
             workerGroup.shutdownGracefully();
         }
