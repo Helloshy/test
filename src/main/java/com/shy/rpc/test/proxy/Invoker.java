@@ -37,7 +37,8 @@ public class Invoker implements InvocationHandler {
                 RpcProtocal pt = new Shy(header,payload);
                 RpcClient client = ClientPool.getCilent(subcribe,pt);
                 Object result = client.send();
-                return method.invoke(args);
+                System.out.println(result == null?"get rpc result: "+"null value":"get rpc result: "+result.toString());
+                return result;
             default:
                 throw new IllegalArgumentException("不支持的通信协议");
         }

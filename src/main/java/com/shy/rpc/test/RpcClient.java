@@ -19,6 +19,8 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class RpcClient {
 
@@ -26,10 +28,14 @@ public class RpcClient {
 
     private RpcProtocal pt;
 
+    private NioSocketChannel channel;
+
     public RpcClient(ProviderInfo subcribe, RpcProtocal pt) {
+        this.subcribe = subcribe;
+        this.pt = pt;
         String host = subcribe.getIp();
         int port = subcribe.getPort();
-        Shy shy = (Shy) pt;
+
         EventLoopGroup workerGroup = new NioEventLoopGroup();
         try {
             Bootstrap b = new Bootstrap(); // (1)
@@ -45,23 +51,10 @@ public class RpcClient {
             });
             // Start the client.
             ChannelFuture f = b.connect(host, port).sync(); // (5)
-            NioSocketChannel channel = (NioSocketChannel) f.channel();
-            byte [] msgBody = SerilUtil.seril(shy.getBody());
-            shy.getHeader().setDataLength(msgBody.length);
-            byte [] msgHeader = SerilUtil.seril(shy.getHeader());
-            ByteBuf buf = PooledByteBufAllocator.DEFAULT.directBuffer(msgHeader.length + msgBody.length);
-            buf.writeBytes(msgHeader);
-            buf.writeBytes(msgBody);
-            CompletableFuture<Shy> callBack = new CompletableFuture<>();
-            CallBackManager.addCallBack(shy.getHeader().getRequestId(),callBack);
-            channel.writeAndFlush(buf);
-            // Wait until the connection is closed.
-            callBack.get();
-            //f.channel().closeFuture().sync();
-        } catch (InterruptedException | ExecutionException e) {
+            channel = (NioSocketChannel) f.channel();
+        } catch (InterruptedException e) {
             throw new ServiceException(e.getMessage());
         } finally {
-            //workerGroup.shutdownGracefully();
         }
     }
 
@@ -70,7 +63,27 @@ public class RpcClient {
     }
 
     public Object send() {
+        Shy shy = (Shy) pt;
+        byte [] msgBody = SerilUtil.seril(shy.getBody());
+        shy.getHeader().setDataLength(msgBody.length);
+        byte [] msgHeader = SerilUtil.seril(shy.getHeader());
+        ByteBuf buf = PooledByteBufAllocator.DEFAULT.directBuffer(msgHeader.length + msgBody.length);
+        buf.writeBytes(msgHeader);
+        buf.writeBytes(msgBody);
+        CompletableFuture<Shy> callBack = new CompletableFuture<>();
+        CallBackManager.addCallBack(shy.getHeader().getRequestId(),callBack);
+        channel.writeAndFlush(buf);
+        try {
+            try {
+                return callBack.get(30, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                throw new ServiceException("调用超时");
+            }
+        } catch (InterruptedException e) {
+            throw new ServiceException(e.getMessage());
+        } catch (ExecutionException e) {
+            throw new ServiceException(e.getMessage());
+        }
 
-        return null;
     }
 }
