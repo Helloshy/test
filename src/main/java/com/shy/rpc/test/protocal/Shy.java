@@ -32,4 +32,12 @@ public class Shy implements RpcProtocal, Serializable {
     public void setBody(ShyPayload body) {
         this.body = body;
     }
+
+    @Override
+    public String toString() {
+        return "Shy{" +
+                "header=" + header.toString() +
+                ", body=" + body.toString() +
+                '}';
+    }
 }

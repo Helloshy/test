@@ -1,7 +1,11 @@
+import com.shy.rpc.BootMain;
 import com.shy.rpc.test.IOrderService;
+import com.shy.rpc.test.RpcServer;
 import com.shy.rpc.test.protocal.ShyHeader;
 import com.shy.rpc.test.proxy.DefaultProxyFactory;
 import com.shy.rpc.test.proxy.ProxyFactory;
+import com.shy.rpc.test.register.ProviderInfo;
+import com.shy.rpc.test.register.RegisterCenter;
 import com.shy.rpc.test.register.SimpleRegisterCenter;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -15,12 +19,20 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 
-@SpringBootTest
+@SpringBootTest(classes = BootMain.class)
 @RunWith(SpringRunner.class)
 public class TestClient {
     @Test
     public void testClient(){
-        ProxyFactory factory = new DefaultProxyFactory(new SimpleRegisterCenter());
+
+        RegisterCenter<ProviderInfo> registerCenter = new SimpleRegisterCenter();
+        ProviderInfo providerInfo = new ProviderInfo();
+        providerInfo.setProviderName(IOrderService.class.getName());
+        providerInfo.setIp("localhost");
+        providerInfo.setPort(8090);
+        providerInfo.setProtocal("shy");
+        registerCenter.regist(providerInfo);
+        ProxyFactory factory = new DefaultProxyFactory(registerCenter);
         IOrderService orderService = factory.getProxy(IOrderService.class);
         int goodsId = 100;
         String order = orderService.createOrder(goodsId);
@@ -54,27 +66,11 @@ public class TestClient {
     }
 
     public static void main(String[] args) {
-        for (int i = 0; i < 10 ; i++) {
-            int length =  i* 100;
-            new Thread(() ->{
-                ShyHeader header = new ShyHeader();
-                header.setFlag(ShyHeader.REQUEST_FLAG);
-                header.setRequestId(UUID.randomUUID().getLeastSignificantBits());
-                header.setDataLength(length);
-                Thread.currentThread().setName("线程id:"+length/100);
-                ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                try {
-                    ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteArrayOutputStream);
-                    objectOutputStream.writeObject(header);
-                    System.out.println("线程id:"+length/100+",header长度: "+byteArrayOutputStream.toByteArray().length);
-                }catch (Exception e){
-                }
-            }).start();
-        }
+        RpcServer server = new RpcServer();
         try {
-            TimeUnit.SECONDS.sleep(10);
+            server.start();
         }catch (Exception e){
-
+            System.out.println("服务器启动失败:"+e.getMessage());
         }
     }
 }

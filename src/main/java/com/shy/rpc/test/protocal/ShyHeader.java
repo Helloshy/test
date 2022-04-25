@@ -46,4 +46,13 @@ public class ShyHeader implements Serializable {
     public void setDataLength(int dataLength) {
         this.dataLength = dataLength;
     }
+
+    @Override
+    public String toString() {
+        return "ShyHeader{" +
+                "requestId=" + requestId +
+                ", flag=" + flag +
+                ", dataLength=" + dataLength +
+                '}';
+    }
 }

@@ -1,11 +1,13 @@
 package com.shy.rpc.test;
 
 
+import com.shy.rpc.test.excepton.ServiceException;
 import com.shy.rpc.test.protocal.RpcProtocal;
 import com.shy.rpc.test.protocal.Shy;
 import com.shy.rpc.test.register.ProviderInfo;
 import com.shy.rpc.test.transport.CallBackManager;
 import com.shy.rpc.test.transport.MessageHandler;
+import com.shy.rpc.test.transport.ResponseHandler;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -37,14 +39,16 @@ public class RpcClient {
             b.handler(new ChannelInitializer<SocketChannel>() {
                 @Override
                 public void initChannel(SocketChannel ch) throws Exception {
-                    ch.pipeline().addLast(new MessageHandler());
+                    ch.pipeline().addLast(new MessageHandler())
+                            .addLast(new ResponseHandler());
                 }
             });
             // Start the client.
             ChannelFuture f = b.connect(host, port).sync(); // (5)
             NioSocketChannel channel = (NioSocketChannel) f.channel();
-            byte [] msgHeader = SerilUtil.seril(shy.getHeader());
             byte [] msgBody = SerilUtil.seril(shy.getBody());
+            shy.getHeader().setDataLength(msgBody.length);
+            byte [] msgHeader = SerilUtil.seril(shy.getHeader());
             ByteBuf buf = PooledByteBufAllocator.DEFAULT.directBuffer(msgHeader.length + msgBody.length);
             buf.writeBytes(msgHeader);
             buf.writeBytes(msgBody);
@@ -53,11 +57,11 @@ public class RpcClient {
             channel.writeAndFlush(buf);
             // Wait until the connection is closed.
             callBack.get();
-            f.channel().closeFuture().sync();
+            //f.channel().closeFuture().sync();
         } catch (InterruptedException | ExecutionException e) {
-
+            throw new ServiceException(e.getMessage());
         } finally {
-            workerGroup.shutdownGracefully();
+            //workerGroup.shutdownGracefully();
         }
     }
 

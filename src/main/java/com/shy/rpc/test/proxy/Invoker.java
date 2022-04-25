@@ -1,6 +1,7 @@
 package com.shy.rpc.test.proxy;
 
 import com.shy.rpc.test.ClientPool;
+import com.shy.rpc.test.IOrderService;
 import com.shy.rpc.test.RpcClient;
 import com.shy.rpc.test.protocal.RpcProtocal;
 import com.shy.rpc.test.protocal.Shy;
@@ -23,12 +24,15 @@ public class Invoker implements InvocationHandler {
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         //封装调用方法信息,告诉调用放需要执行的方法以及方法参数
-        ProviderInfo subcribe = registerCenter.subcribe(method.getClass().getName());
+        ProviderInfo subcribe = registerCenter.subcribe(IOrderService.class.getName());
         String protocal = subcribe.getProtocal();
         //确定通信协议
         switch (protocal){
             case "shy":
                 ShyPayload payload = new ShyPayload();
+                payload.setInterfaceName(subcribe.getProviderName());
+                payload.setMethodName(method.getName());
+                payload.setArgs(args);
                 ShyHeader header = new ShyHeader(ShyHeader.REQUEST_FLAG);
                 RpcProtocal pt = new Shy(header,payload);
                 RpcClient client = ClientPool.getCilent(subcribe,pt);
